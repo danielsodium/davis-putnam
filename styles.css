@@ -1,0 +1,17 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f9;
+}
+
+h1 {
+    color: #007bff;
+}
+
+.card {
+    margin-top: 20px;
+}
+
+.input-group {
+    max-width: 600px;
+    margin: 0 auto;
+}
