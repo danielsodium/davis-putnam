@@ -253,6 +253,19 @@ function parseExpression(input) {
     throw new Error("Invalid expression: " + input);
 }
 
+function printClause(clauses) {
+    let str = ""
+    for (var i = 0; i < clauses.length; i++) {
+        str += "{"
+        for (var j = 0; j < clauses[i].length; j++) {
+            str += clauses[i][j];
+            if (j != clauses[i].length - 1) str += ",";
+        }
+        str += "}\n"
+    }
+    return str;
+}
+
 class Equation {
     constructor(premises, conclusion) {
         this.premises = [];
@@ -275,14 +288,17 @@ class Equation {
     solve(clauses, consts) {
         for (var i = 0; i < clauses.length; i++) {
             if (clauses[i].length == 0) {
-                return 0;
+                return "{}\nX\n";
             }
         }
         // Check if need to end
         if (consts.length == 0) {
-            return 1;
+            let str = "";
+            str += printClause(clauses);
+            str += "O\n"
+            return str;
         }
-        let solutions = 0;
+        let solutions = "";
         let branch = consts[0];
 
         consts.shift();
@@ -297,8 +313,10 @@ class Equation {
                 cc[i].splice(neg, 1);
             }
         }
+        solutions += printClause(clauses);
+        solutions += "----- " + branch + "\n";
         solutions += this.solve(cc, consts);
-        console.log(solutions);
+        solutions += "---------\n"
 
         // negative
         cc = clauses.map(subArray => [...subArray]);
@@ -311,7 +329,8 @@ class Equation {
                 cc[i].splice(neg, 1);
             }
         }
-        console.log(cc);
+        solutions += printClause(clauses);
+        solutions += "------ ¬" + branch + "\n";
         solutions += this.solve(cc, consts);
 
         return solutions;
@@ -414,7 +433,7 @@ class Equation {
 
         let solutions = this.solve(this.clauses, this.consts);
 
-        str += "\n\nSOLUTIONS: " + solutions; 
+        str += "\n\nSOLUTIONS:\n" + solutions; 
 
         return str;
     }
