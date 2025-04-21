@@ -373,7 +373,6 @@ class Equation {
     
         return treeLines.join('\n');
     }
-    
 
     generateClauses(cnfs) {
         let clauses = [];
@@ -515,26 +514,20 @@ class Equation {
                 consts.push(char);
             }
         }
-        consts =[... new Set(consts)];
-        this.consts = consts;
-        var proofs = [];
-        var steps = [];
-        var path = [];
-        var tree_str = this.tree(this.clauses, this.consts, 0, path);
-
+        this.consts = [... new Set(consts)];
+        var tree_str = this.tree(this.clauses, this.consts, 0, []);
 
         let solution_str = "";
         for (var i = 0; i < this.solutions.length; i++) {
-            solution_str += "<p>"
+            solution_str += "<p>{"
             for (var j = 0; j < this.solutions[i].length; j++) {
-                solution_str += this.solutions[i][j] + " ";
+                solution_str += this.solutions[i][j];
+                if (j != this.solutions[i].length-1) solution_str  += ", ";
             }
-            solution_str += "</p>"
+            solution_str += "}</p>"
         }
-        console.log(this.solutions)
-        console.log(proofs)
-        let proof = this.prove();
 
+        let proof = this.prove();
         let proof_str = "";
         for (var i = 0; i < proof.length; i++) {
             proof_str += `<tr><td>${proof[i].step}</td><td>${printClause(proof[i].clause)}</td><td>${proof[i].justification}</td></tr>`

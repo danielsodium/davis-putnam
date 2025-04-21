@@ -26,6 +26,10 @@ body {
     font-weight: 500;
 }
 
+.card-body {
+    padding: 40px;
+}
+
 .btn-primary {
     --bs-btn-padding-y: 0.75rem;
     --bs-btn-padding-x: 1.5rem;

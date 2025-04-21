@@ -8,6 +8,7 @@ document.getElementById("add-premise").addEventListener("click", function() {
                             <i class="bi bi-x"></i>
                         </button>
     `;
+    premiseBox.addEventListener("input", replaceSymbols);
     inputContainer.appendChild(premiseBox);
 });
 
@@ -59,3 +60,23 @@ document.querySelectorAll(".logic-operator").forEach(button => {
         }
     });
 });
+
+function replaceSymbols(event) {
+    const input = event.target;
+    const cursorPosition = input.selectionStart;
+    const originalLength = input.value.length;
+
+    // Replace all 'a' with '@'
+    input.value = input.value.replace(/\|/g, "∨");
+    input.value = input.value.replace(/\&/g, "∧");
+    input.value = input.value.replace(/\~/g, "¬");
+    input.value = input.value.replace(/\$/g, "→");
+    input.value = input.value.replace(/\%/g, "↔");
+
+    // Optional: keep the cursor at the correct position
+    const newLength = input.value.length;
+    const offset = newLength - originalLength;
+    input.setSelectionRange(cursorPosition + offset, cursorPosition + offset);
+}
+
+document.getElementById("first-premise").addEventListener("input", replaceSymbols);
