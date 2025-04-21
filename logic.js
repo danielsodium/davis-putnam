@@ -253,110 +253,129 @@ function parseExpression(input) {
     throw new Error("Invalid expression: " + input);
 }
 
-function printClause(clauses, level) {
-    let str = ""
+function printClause(clause) {
+    let str = "{"
+    for (var i = 0; i < clause.length; i++) {
+        str += clause[i];
+        if (i != clause.length - 1) str += ",";
+    }
+    str += "}";
+    return str;
+}
+
+function printBranch(clauses, level) {
+    let str = `<p style="margin-left: ${level*20}px">`
     for (var i = 0; i < clauses.length; i++) {
-        str += "   ".repeat(level) + "{"
+        str += (" ").repeat(level*2) + "{"
         for (var j = 0; j < clauses[i].length; j++) {
             str += clauses[i][j];
             if (j != clauses[i].length - 1) str += ",";
         }
-        str += "}\n"
+        str += "}"
     }
+    str += "</p>";
     return str;
 }
+
+
 
 class Equation {
     constructor(premises, conclusion) {
         this.premises = [];
         this.consts = [];
         this.clauses = [];
+        this.solutions = [];
 
-        // Parse the premises
         try {
             for (var i = 0; i < premises.length; i++) {
                 this.premises.push(parseExpression(premises[i]));
             }
-            this.conclusion = parseExpression(conclusion);
+            if (conclusion) this.conclusion = parseExpression(conclusion);
         } catch (e) {
             showErrorModal(e.message);
             return null;
         }
-        this.conclusion = this.conclusion.negate();
+        if (this.conclusion) this.conclusion = this.conclusion.negate();
     }
 
-    solve(clauses, consts, level) {
-        for (var i = 0; i < clauses.length; i++) {
-            if (clauses[i].length == 0) {
-                return "   ".repeat(level)+"{}\n"+"   ".repeat(level)+"X\n";
+    tree(clauses, consts, level, path) {
+        // base cases
+        for (let i = 0; i < clauses.length; i++) {
+            if (clauses[i].length === 0) {
+                return `${' '.repeat(level*2)}X`;
             }
         }
-        // Check if need to end
-        if (consts.length == 0) {
-            let str = "";
-            str += printClause(clauses, level);
-            str += "   ".repeat(level) + "O\n"
-            return str;
+        if (consts.length === 0) {
+            this.solutions.push(path.slice());
+            return `${' '.repeat(level*2)}O`;
         }
-        let solutions = "";
-        let branch = consts[0];
-
-        consts.shift();
-        // positive
-        let cc = clauses.map(subArray => [...subArray]);
-        for (var i = cc.length - 1; i >= 0; i--) {
-            let neg = cc[i].indexOf("¬" + branch);
-            if (cc[i].indexOf(branch) != -1) {
-                cc.splice(i, 1);
-            }
-            else if (neg != -1) {
-                cc[i].splice(neg, 1);
-            }
+    
+        // prepare ascii prefixes
+        const pad = ' '.repeat(level * 2);
+        const branch = consts.shift();
+        let treeLines = [];
+    
+        // helper to format a branch
+        const branchLine = (lbl, isLast) =>
+            `${pad}${isLast ? '└─' : '├─'} ${lbl}`;
+    
+        // two subtrees: positive then negative
+        const makeSubtree = (lit, filteredClauses, isLast) => {
+            // record resolution step
+            path.push(lit);
+    
+            // branch header
+            treeLines.push(branchLine(lit + ' branch', isLast));
+            
+            // show current resolved clauses at this point
+            const clauseStr = filteredClauses
+                .map(c => '[' + c.join(', ') + ']')
+                .join(', ');
+            treeLines.push(`${pad}  Clauses: ${clauseStr}`);
+    
+            // recurse deeper
+            const sub = this.tree(
+                filteredClauses,
+                [...consts],
+                level + 1,
+                path
+            );
+            const inner = sub.replace(/^<\/?pre>/g, '')
+                             .split('\n')
+                             .filter(l => l.length)
+                             .map(l => pad + '  ' + l)
+                             .join('\n');
+            treeLines.push(inner);
+    
+            path.pop();
+        };
+    
+        // build positive clauses
+        let posClauses = clauses.map(c => [...c]);
+        for (let i = posClauses.length - 1; i >= 0; i--) {
+            const negIdx = posClauses[i].indexOf('¬' + branch);
+            if (posClauses[i].includes(branch))        posClauses.splice(i, 1);
+            else if (negIdx !== -1)                    posClauses[i].splice(negIdx, 1);
         }
-        solutions += printClause(clauses, level);
-        solutions += ("---").repeat(level) + " " + branch + "\n";
-        solutions += this.solve(cc, consts, level+1);
-
-        // negative
-        cc = clauses.map(subArray => [...subArray]);
-        for (var i = cc.length - 1; i >= 0; i--) {
-            let neg = cc[i].indexOf("¬" + branch);
-            if (cc[i].indexOf(branch) != -1) {
-                cc[i].splice(neg, 1);
-            }
-            else if (neg != -1) {
-                cc.splice(i, 1);
-            }
+        makeSubtree(branch, posClauses, false);
+    
+        // build negative clauses
+        let negClauses = clauses.map(c => [...c]);
+        for (let i = negClauses.length - 1; i >= 0; i--) {
+            const posIdx = negClauses[i].indexOf(branch);
+            if (negClauses[i].includes('¬' + branch))   negClauses.splice(i, 1);
+            else if (posIdx !== -1)                    negClauses[i].splice(posIdx, 1);
         }
-        solutions += printClause(clauses, level);
-        solutions += ("---").repeat(level) +" ¬" + branch + "\n";
-        solutions += this.solve(cc, consts, level + 1);
+        makeSubtree('¬' + branch, negClauses, true);
+    
+        // restore constant for sibling branches
         consts.unshift(branch);
-
-        return solutions;
+    
+        return treeLines.join('\n');
     }
+    
 
-    string() {
-        let str = "Premises:\n";
-
-        let cnfs = [];
-        for (var i = 0; i < this.premises.length; i++) {
-            str += this.premises[i].string() + "\n";
-            cnfs.push(this.premises[i].toCNF());
-        }
-
-        if (this.conclusion) {
-            str += "\nConclusion:\n" + this.conclusion.string();
-            str += "\nSimplified:\n" + this.conclusion.toCNF().string();
-            cnfs.push(this.conclusion.toCNF());
-        }
-
-        str += "\n\nCNFS:\n";
-        for (var i = 0; i < cnfs.length; i++) {
-            str += cnfs[i].string() + "\n";
-        }
-
-        // CONVERT INTO CLAUSES
+    generateClauses(cnfs) {
         let clauses = [];
         for (var i = 0; i < cnfs.length; i++) {
             if (cnfs[i].constant) {
@@ -378,6 +397,7 @@ class Equation {
                 clauses.push(c);
                 continue;
             }
+
             // Has at least one AND
             for (var j = 0; j < cnfs[i].constants.length; j++) {
                 if (cnfs[i].constants[j].constant) {
@@ -398,43 +418,134 @@ class Equation {
                 clauses.push(c);
             }
         }
+        this.clauses = clauses;
+    }
+    
+    prove() {
+        let step_num = 1;
+        let steps = [];
 
-
-        str += "\nClauses: \n";
-        for (var i = 0; i < clauses.length; i++) {
-            str += "{"
-            for (var j = 0; j < clauses[i].length; j++) {
-                str += clauses[i][j];
-                if (j != clauses[i].length -1) str += ",";
-            }
-            str += "}\n"
+        // Given
+        for (var i = 0; i < this.clauses.length; i++) {
+            steps.push({
+                step: step_num++, 
+                clause: this.clauses[i],
+                justification: "Given"
+            })
         }
 
-        str += "\nConstants:\n"
+        // Main loop
+        const clauseExists = (clause) => {
+            return steps.some(obj => 
+              Array.isArray(obj.clause) &&
+              obj.clause.length === clause.length &&
+              obj.clause.every((val, idx) => val === clause[idx])
+            );
+        };
+
+        let changed = false;
+        for (var i = 0; i < steps.length; i++) {
+            // Resolve over any 1 size
+            if (steps[i].clause.length == 1) {
+
+                const constant = steps[i].clause[0];
+                const negation = constant.startsWith("¬") ? constant.slice(1) : "¬" + constant;
+
+                // Check if we can resolve it with any other step
+                for (var j = 0; j < steps.length; j++) {
+                    if (i == j) continue;
+
+                    if (steps[j].clause.includes(negation)) {
+                        const resolventNeg = steps[j].clause.filter(lit => lit !== negation);
+                        if (!clauseExists(resolventNeg)) {
+                            steps.push({
+                                step: step_num++,
+                                clause: resolventNeg,
+                                justification: `Resolution ${i+1}, ${j+1}`
+                            });
+                            changed = true;
+                        }
+                    }
+                }
+            }
+            if (changed) {
+                changed = false;
+                i = -1;
+            }
+        }
+
+        return steps;
+    }
+    
+    string() {
+
+        let cnfs = [];
+        for (var i = 0; i < this.premises.length; i++) {
+            cnfs.push(this.premises[i].toCNF());
+        }
+
+        if (this.conclusion) {
+            cnfs.push(this.conclusion.toCNF());
+        }
+
+        let cnf_str = "";
+        for (var i = 0; i < cnfs.length; i++) {
+            cnf_str += "<p>" + cnfs[i].string() + "</p>";
+        }
+
+        // CONVERT INTO CLAUSES
+        this.generateClauses(cnfs); 
+
+        let clause_str = "";
+        for (var i = 0; i < this.clauses.length; i++) {
+            clause_str += "<p>{"
+            for (var j = 0; j < this.clauses[i].length; j++) {
+                clause_str += this.clauses[i][j];
+                if (j != this.clauses[i].length -1) clause_str += ",";
+            }
+            clause_str += "}</p>"
+        }
+
         let consts = [];
-        for (var i = 0; i < clauses.length; i++) {
-            for (var j = 0; j < clauses[i].length; j++) {
-                let char = clauses[i][j];
-                if (clauses[i][j].length != 1) 
-                    char = clauses[i][j][1];
+        for (var i = 0; i < this.clauses.length; i++) {
+            for (var j = 0; j < this.clauses[i].length; j++) {
+                let char = this.clauses[i][j];
+                if (this.clauses[i][j].length != 1) 
+                    char = this.clauses[i][j][1];
                 consts.push(char);
             }
         }
-
-        // Filter dups
-        consts = [...new Set(consts)];
-
-        for (var i = 0; i < consts.length; i++) {
-            str += consts[i] 
-            if (i != consts.length -1) str += ",";
-        }
+        consts =[... new Set(consts)];
         this.consts = consts;
-        this.clauses = clauses;
+        var proofs = [];
+        var steps = [];
+        var path = [];
+        var tree_str = this.tree(this.clauses, this.consts, 0, path);
 
-        let solutions = this.solve(this.clauses, this.consts, 0);
 
-        str += "\n\nSOLUTIONS:\n" + solutions; 
+        let solution_str = "";
+        for (var i = 0; i < this.solutions.length; i++) {
+            solution_str += "<p>"
+            for (var j = 0; j < this.solutions[i].length; j++) {
+                solution_str += this.solutions[i][j] + " ";
+            }
+            solution_str += "</p>"
+        }
+        console.log(this.solutions)
+        console.log(proofs)
+        let proof = this.prove();
 
-        return str;
+        let proof_str = "";
+        for (var i = 0; i < proof.length; i++) {
+            proof_str += `<tr><td>${proof[i].step}</td><td>${printClause(proof[i].clause)}</td><td>${proof[i].justification}</td></tr>`
+        }
+
+        return {
+            "cnf": cnf_str ,
+            "clauses": clause_str,
+            "proof": proof_str,
+            "tree": tree_str,
+            "solution":  solution_str
+        };
     }
 }
