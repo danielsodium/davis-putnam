@@ -1,3 +1,4 @@
+// premises stuff
 document.getElementById("add-premise").addEventListener("click", function() {
     const inputContainer = document.getElementById("premises-container");
     const premiseBox = document.createElement("div");
@@ -18,6 +19,7 @@ document.getElementById("premises-container").addEventListener("click", function
     }
 });
 
+// submit proof
 document.getElementById('proof-form').addEventListener('submit', e => {
     e.preventDefault();
     const premises = Array.from(document.querySelectorAll(".premise-input"))
@@ -27,7 +29,7 @@ document.getElementById('proof-form').addEventListener('submit', e => {
 
     let proof = new Equation(premises, conclusion);
 
-    let output = proof.string();
+    let output = proof.data();
     document.getElementById("proof-output").innerHTML = output.proof; 
     document.getElementById("clauses-output").innerHTML = output.clauses; 
     document.getElementById("tree-output").innerHTML = output.tree; 
@@ -39,14 +41,13 @@ document.getElementById('proof-form').addEventListener('submit', e => {
     document.getElementById('proof-output-container').scrollIntoView({ behavior: 'smooth' });
 });
 
+// symbol buttons
 let activeInput = null;
-
 document.addEventListener("focusin", (event) => {
     if (event.target.classList.contains("premise-input") || event.target.id === "conclusion") {
         activeInput = event.target;
     }
 });
-
 document.querySelectorAll(".logic-operator").forEach(button => {
     button.addEventListener("click", function() {
         if (activeInput) {
@@ -61,19 +62,18 @@ document.querySelectorAll(".logic-operator").forEach(button => {
     });
 });
 
+// keyboard shortcuts
 function replaceSymbols(event) {
     const input = event.target;
     const cursorPosition = input.selectionStart;
     const originalLength = input.value.length;
 
-    // Replace all 'a' with '@'
     input.value = input.value.replace(/\|/g, "∨");
     input.value = input.value.replace(/\&/g, "∧");
     input.value = input.value.replace(/\~/g, "¬");
     input.value = input.value.replace(/\$/g, "→");
     input.value = input.value.replace(/\%/g, "↔");
 
-    // Optional: keep the cursor at the correct position
     const newLength = input.value.length;
     const offset = newLength - originalLength;
     input.setSelectionRange(cursorPosition + offset, cursorPosition + offset);

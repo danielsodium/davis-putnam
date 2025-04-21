@@ -123,30 +123,27 @@ class Expression {
     }
 
     toCNF() {
-        // First simplify the expression to remove implications and equivalences
+        // remove implications and equivalences
         let simplified = this.simplify();
         
-        // If it's already a constant, just return it
         if (simplified.constant) {
             return simplified;
         }
         
-        // For negation
+        // negation
         if (simplified.predicate === "¬") {
-            // If negating a constant, return as is
             if (simplified.constants[0].constant) {
                 return simplified;
             }
-            // Otherwise, the negation should have been handled by simplify()
             return simplified.constants[0].toCNF();
         }
         
-        // Convert each sub-expression to CNF first
+        // convert to CNF 
         for (let i = 0; i < simplified.constants.length; i++) {
             simplified.constants[i] = simplified.constants[i].toCNF();
         }
         
-        // Flatten nested ANDs - (A ∧ (B ∧ C)) becomes (A ∧ B ∧ C)
+        // nested ANDs 
         if (simplified.predicate === "∧") {
             let flattenedConstants = [];
             for (let i = 0; i < simplified.constants.length; i++) {
@@ -161,12 +158,11 @@ class Expression {
             return simplified;
         }
         
-        // Flatten nested ORs - (A ∨ (B ∨ C)) becomes (A ∨ B ∨ C)
+        // nested ORs
         if (simplified.predicate === "∨") {
             let flattenedConstants = [];
             for (let i = 0; i < simplified.constants.length; i++) {
                 if (!simplified.constants[i].constant && simplified.constants[i].predicate === "∨") {
-                    // Add all the inner OR's constants to our flattened list
                     flattenedConstants = flattenedConstants.concat(simplified.constants[i].constants);
                 } else {
                     flattenedConstants.push(simplified.constants[i]);
@@ -174,7 +170,7 @@ class Expression {
             }
             simplified.constants = flattenedConstants;
             
-            // Check if we need to distribute OR over AND
+            // distribute OR over AND
             let andIndex = -1;
             for (let i = 0; i < simplified.constants.length; i++) {
                 if (!simplified.constants[i].constant && simplified.constants[i].predicate === "∧") {
@@ -184,7 +180,7 @@ class Expression {
             }
             
             if (andIndex !== -1) {
-                // Create new OR expressions, distributing over the AND
+                // distribute AND
                 let andExpr = simplified.constants[andIndex];
                 let otherExprs = simplified.constants.filter((_, idx) => idx !== andIndex);
                 
@@ -195,16 +191,16 @@ class Expression {
                     newAndExprs.push(newOrExpr); // Will be converted to CNF after
                 }
                 
-                // Create a new AND expression with the distributed OR expressions
+                // distribute OR expressions
                 let result = new Expression(newAndExprs, "∧");
-                // Recursively call toCNF to handle any further distributions needed
+                // toCNF handles any further distributions
                 return result.toCNF();
             }
             
             return simplified;
         }
         
-        // If we reach here, the expression should have been simplified already
+        // the expression should be simplified already
         return simplified;
     }
 }
@@ -233,7 +229,6 @@ function parseExpression(input) {
         }
     }
 
-    // If a main operator was found, split and recurse
     if (mainOpIndex !== -1) {
         let left = parseExpression(input.substring(0, mainOpIndex));
         let right = parseExpression(input.substring(mainOpIndex + 1));
@@ -298,6 +293,7 @@ class Equation {
         if (this.conclusion) this.conclusion = this.conclusion.negate();
     }
 
+    // Returns an ascii tree
     tree(clauses, consts, level, path) {
         // base cases
         for (let i = 0; i < clauses.length; i++) {
@@ -374,6 +370,7 @@ class Equation {
         return treeLines.join('\n');
     }
 
+    // Generates clauses from cnfs
     generateClauses(cnfs) {
         let clauses = [];
         for (var i = 0; i < cnfs.length; i++) {
@@ -420,6 +417,8 @@ class Equation {
         this.clauses = clauses;
     }
     
+
+    // Brute force proof
     prove() {
         let step_num = 1;
         let steps = [];
@@ -476,7 +475,8 @@ class Equation {
         return steps;
     }
     
-    string() {
+    // returns data to display
+    data() {
 
         let cnfs = [];
         for (var i = 0; i < this.premises.length; i++) {
